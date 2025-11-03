@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ocean Cleanup VR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- 2D HUD (desktop only, VR will ignore) -->
+    <div class="hud">
+      <div class="panel">
+        <div class="title" id="levelTitle">—</div>
+        <div id="timerLabel">–:–</div>
+        <div id="totalScoreLabel">Total collected: 0</div>
+        <div class="tip">
+          Desktop: click to start · VR: use both controllers
+        </div>
+      </div>
+    </div>
+
+    <!-- hidden info dialog (desktop) -->
+    <div id="info" class="dialog hidden">
+      <div class="dialog-box">
+        <div id="infoText">Info</div>
+        <button id="infoBtn" class="clickable">Next</button>
+      </div>
+    </div>
+
+    <a-scene
+      id="scene"
+      renderer="antialias: true"
+      xr-mode-ui="enabled: true"
+      webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking"
+      background="color: #6cacbb"
+    >
+      <!-- Assets (turtle image + underwater audio) -->
+      <a-assets>
+        <img id="turtleImg" src="images/turtle.jpg" crossorigin="anonymous" />
+        <audio
+          id="underwaterSnd"
+          src="sounds/UnderwaterSounds.mp3"
+          preload="auto"
+        ></audio>
+      </a-assets>
+
+      <!-- global sky -->
+      <a-sky id="sky" color="#6cacbb"></a-sky>
+
+      <!-- BEACH (start) -->
+      <a-entity id="beachEnv">
+        <a-plane
+          rotation="-90 0 0"
+          width="80"
+          height="80"
+          position="0 0 0"
+          material="color:#e8d7a6"
+        ></a-plane>
+        <a-plane
+          rotation="-90 0 0"
+          width="80"
+          height="80"
+          position="0 0 -20"
+          material="color:#5db8ff"
+        ></a-plane>
+      </a-entity>
+
+      <!-- UNDERWATER -->
+      <a-entity id="underwaterEnv" visible="false">
+        <a-entity
+          light="type: ambient; intensity: 0.45; color: #7fd0ff"
+        ></a-entity>
+        <a-entity
+          light="type: directional; intensity: 0.65; color: #bfe9ff"
+          position="0 6 -3"
+        ></a-entity>
+        <a-plane
+          rotation="-90 0 0"
+          width="120"
+          height="120"
+          position="0 -1.1 0"
+          material="color:#d9c79c"
+        ></a-plane>
+        <a-entity id="spawner"></a-entity>
+
+        <!-- 3D HUD in VR -->
+        <a-entity
+          id="vrHud"
+          position="0 0 -1.3"
+          text="value: ; align: center; width: 2.5; color: #fff"
+          visible="false"
+        ></a-entity>
+      </a-entity>
+
+      <!-- PLAYER RIG -->
+      <a-entity id="rig" position="0 1.6 6" hand-vr-sync quest-move>
+        <a-entity id="camera" camera look-controls></a-entity>
+
+        <!-- hands hidden until game starts -->
+        <a-box
+          id="leftHand"
+          depth="0.12"
+          height="0.08"
+          width="0.18"
+          position="-0.25 -0.15 -0.5"
+          color="#f3d2a2"
+          visible="false"
+          shadow="cast: false; receive: false"
+        ></a-box>
+
+        <a-entity
+          id="rightHand"
+          position="0.25 -0.15 -0.5"
+          visible="false"
+          shadow="cast: false; receive: false"
+        >
+          <a-box
+            depth="0.12"
+            height="0.08"
+            width="0.18"
+            color="#f3d2a2"
+            shadow="cast: false; receive: false"
+          ></a-box>
+          <a-entity
+            id="net"
+            position="0 -0.02 -0.18"
+            net-collector="radius: 0.45; score3D: #score3D"
+            net-boost
+            shadow="cast: false; receive: false"
+          >
+            <a-ring
+              radius-inner="0.26"
+              radius-outer="0.28"
+              material="wireframe:true; color:#fff"
+            ></a-ring>
+            <a-cylinder
+              position="0 -0.18 0.06"
+              radius="0.02"
+              height="0.35"
+              color="#c1c1c1"
+            ></a-cylinder>
+          </a-entity>
+        </a-entity>
+
+        <!-- start panel in 3D (ALWAYS in front of camera) -->
+        <a-entity id="startPanel" position="0 0 -1.5" visible="true">
+          <!-- turtle photo as the background -->
+          <a-plane
+            width="1.8"
+            height="1.0125"
+            material="shader: flat; src: #turtleImg; side:double"
+            radius="0.06"
+          ></a-plane>
+
+          <!-- button below the image -->
+          <a-plane
+            position="0 -0.8 0"
+            width="1.2"
+            height="0.3"
+            color="#0b2230"
+            opacity="0.9"
+            radius="0.05"
+            class="clickable"
+          ></a-plane>
+
+          <!-- button text -->
+          <a-entity
+            id="startText"
+            position="0 -0.8 0.01"
+            text="value: Klik om te beginnen; align: center; width: 2; color: #fff"
+          ></a-entity>
+        </a-entity>
+      </a-entity>
+
+      <!-- controllers (actual Quest controllers) -->
+      <a-entity
+        id="leftController"
+        oculus-touch-controls="hand: left"
+      ></a-entity>
+      <a-entity
+        id="rightController"
+        oculus-touch-controls="hand: right"
+      ></a-entity>
+
+      <!-- floating score (in world) -->
+      <a-entity
+        id="score3D"
+        text="value: Trash: 0; align: center; color: white; width: 2"
+        position="0 0.6 -1.4"
+        visible="false"
+      ></a-entity>
+
+      <!-- background audio (loops) -->
+      <a-entity
+        sound="src: #underwaterSnd; autoplay: true; loop: true; volume: 0.35"
+      ></a-entity>
+    </a-scene>
+
+    <script src="game.js"></script>
+  </body>
+</html>
